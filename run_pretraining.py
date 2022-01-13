@@ -423,7 +423,7 @@ def prepare_optimizer_parameters(args, model):
 
 def prepare_model_and_optimizer(args):
     # Load Pre-training Model skeleton + supplied model config
-    model = BasePretrainModel(args)
+    model = BasePretrainModel(args, model_name_or_path=args.model_name_or_path)
 
     # Optimizer parameters
     optimizer_grouped_parameters = model.prepare_optimizer_parameters(
