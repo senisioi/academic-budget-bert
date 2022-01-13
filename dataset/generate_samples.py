@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     # for each shard -> call prepare_data.py  x duplicated factor
 
-    shard_files = list_files_in_dir(args.dir)
+    shard_files = list_files_in_dir(args.dir, '')
     # new_shards_output = os.path.join(args.o, "generated_hdf5_samples")
     new_shards_output = args.o
     os.makedirs(new_shards_output, exist_ok=True)
@@ -77,9 +77,9 @@ if __name__ == "__main__":
     def create_shard(f_path, shard_idx, set_group, args):
         output_filename = os.path.join(new_shards_output, f"{set_group}_shard_{shard_idx}.hdf5")
         if "roberta" in args.model_name:
-            hdf5_preprocessing_cmd = "python data/create_pretraining_data_roberta.py"
+            hdf5_preprocessing_cmd = "python3 data/create_pretraining_data_roberta.py"
         else:
-            hdf5_preprocessing_cmd = "python data/create_pretraining_data.py"
+            hdf5_preprocessing_cmd = "python3 data/create_pretraining_data.py"
         hdf5_preprocessing_cmd += f" --input_file={f_path}"
         hdf5_preprocessing_cmd += f" --output_file={output_filename}"
         hdf5_preprocessing_cmd += (
@@ -113,4 +113,5 @@ if __name__ == "__main__":
             set_group = "train" if "train" in file_name else "test"
             last_process = create_shard(f, shard_idx[set_group], set_group, args)
             shard_idx[set_group] += 1
-    last_process.wait()
+    if last_process:
+        last_process.wait()

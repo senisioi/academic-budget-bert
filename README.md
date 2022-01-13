@@ -1,9 +1,73 @@
-# Training BERT with Compute/Time (Academic) Budget
+# (pre)Training Romanian BERT on legal data with Compute/Time (Academic) Budget
 
-This repository contains scripts for pre-training and finetuning BERT-like models with limited time and compute budget.
-The code is based on the work presented in the following paper:
+This repository is based on the original paper by Peter Izsak, Moshe Berchansky, Omer Levy, [How to Train BERT with an Academic Budget](https://aclanthology.org/2021.emnlp-main.831.pdf) (EMNLP 2021) contains scripts for pre-training and finetuning BERT-like models with limited time and compute budget.
 
-Peter Izsak, Moshe Berchansky, Omer Levy, [How to Train BERT with an Academic Budget](https://aclanthology.org/2021.emnlp-main.831.pdf) (EMNLP 2021).
+## Re-train using docker
+ 
+1. Create an [account on NGC](https://catalog.ngc.nvidia.com) and download the [pytorch docker container](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch)
+2. Run the docker container with
+```bash
+# mount a local path
+docker run --gpus all -it -v $LOCAL_PATH:/elocal -p 8088:8888 --rm pytrc
+```
+3. Clone the repository and `pip install -r requirements.txt`
+3. Download the [data](https://relate.racai.ro/resources/marcell/acquis_marcell.zip), unzip only the `ro-raw.zip`
+4. Preprocess the data using `dataset/preprocess_ro_raw_marcell.py`
+5. Generate samples
+
+```bash
+python3 generate_samples.py --dir /elocal/leg/shards -o /elocal/leg/mlm_data --dup_factor 10 --seed 42 --vocab_file /elocal/leg/vocab.txt --do_lower_case 0 --masked_lm_prob 0.15 --max_seq_length 128 --model_name bert --max_predictions_per_seq 20 --n_processes 16
+```
+
+6. Train
+```bash
+deepspeed run_pretraining.py \
+  --model_type bert-mlm \
+  --model_name_or_path dumitrescustefan/bert-base-romanian-cased-v1 \
+  --hidden_act gelu \
+  --hidden_size 1024 \
+  --num_hidden_layers 24 \
+  --num_attention_heads 16 \
+  --intermediate_size 4096 \
+  --hidden_dropout_prob 0.1 \
+  --attention_probs_dropout_prob 0.1 \
+  --encoder_ln_mode pre-ln \
+  --lr 1e-3 \
+  --train_batch_size 4096 \
+  --train_micro_batch_size_per_gpu 128 \
+  --lr_schedule time \
+  --curve linear \
+  --warmup_proportion 0.06 \
+  --gradient_clipping 0.0 \
+  --optimizer_type adamw \
+  --weight_decay 0.01 \
+  --adam_beta1 0.9 \
+  --adam_beta2 0.98 \
+  --adam_eps 1e-6 \
+  --total_training_time 30 \
+  --early_exit_time_marker 30 \
+  --dataset_path /home/opc/storage/notebooks/step_zero_notebook/experiments/leg/mlm_data \
+  --output_dir /home/opc/storage/notebooks/step_zero_notebook/experiments/leg/bert_v4 \
+  --print_steps 100 \
+  --num_epochs_between_checkpoints 10000 \
+  --job_name pretraining_experiment \
+  --project_name budget-bert-pretraining \
+  --validation_epochs 3 \
+  --validation_epochs_begin 1 \
+  --validation_epochs_end 1 \
+  --validation_begin_proportion 0.05 \
+  --validation_end_proportion 0.01 \
+  --validation_micro_batch 16 \
+  --deepspeed \
+  --data_loader_type dist \
+  --do_validation \
+  --use_early_stopping \
+  --early_stop_time 180 \
+  --early_stop_eval_loss 6 \
+  --seed 42 \
+  --fp16
+```
+
 
 ## Installation
 
